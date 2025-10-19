@@ -1,0 +1,8 @@
+              precision    recall  f1-score   support
+
+         不离职     0.9375    0.8491    0.8911        53
+          离职     0.3333    0.5714    0.4211         7
+
+    accuracy                         0.8167        60
+   macro avg     0.6354    0.7102    0.6561        60
+weighted avg     0.8670    0.8167    0.8363        60

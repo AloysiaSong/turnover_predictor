@@ -1,0 +1,9 @@
+{
+  "train_ratio": 0.68,
+  "val_ratio": 0.12,
+  "test_ratio": 0.2,
+  "random_state": 42,
+  "train_size": 340,
+  "val_size": 60,
+  "test_size": 100
+}

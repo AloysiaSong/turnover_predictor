@@ -1,0 +1,43 @@
+seed: 42
+device: auto
+
+data:
+  graph_path: data/processed/hetero_graph.pt
+  triples_path: data/processed/preference_triples.pt
+  scaler_path: data/processed/feature_scaler.pkl
+
+model:
+  hidden_dim: 128
+  num_layers: 2
+  heads: 4
+  dropout: 0.2
+  use_layernorm: true
+
+training:
+  epochs: 200
+  patience: 20
+  batch_size: 4096
+  lr: 0.001
+  weight_decay: 0.0005
+  grad_clip: 1.0
+
+loss:
+  alpha: 0.75
+  beta: 0.25
+  gamma: 0.0
+  turnover:
+    loss_type: focal
+    alpha: 0.25
+    gamma: 2.0
+  preference:
+    loss_type: margin
+    margin: 1.0
+
+scheduler:
+  type: reduce_on_plateau
+  factor: 0.5
+  patience: 5
+
+logging:
+  eval_interval: 1
+  save_dir: outputs/hetero

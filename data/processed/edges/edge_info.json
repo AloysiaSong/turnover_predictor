@@ -1,0 +1,11 @@
+{
+  "edge_types": [
+    "('employee', 'works_as', 'post_type')",
+    "('employee', 'at_size', 'company_size')",
+    "('employee', 'at_type', 'company_type')",
+    "('employee', 'prefer', 'hypothetical_post')",
+    "('employee', 'disprefer', 'hypothetical_post')"
+  ],
+  "num_edge_types": 5,
+  "total_edges": 8627
+}

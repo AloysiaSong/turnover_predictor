@@ -1,0 +1,28 @@
+{
+  "config": {
+    "data_path": "data/processed/homo_graph.pt",
+    "architecture": "default",
+    "dropout": 0.5,
+    "lr": 0.01,
+    "weight_decay": 0.0005,
+    "epochs": 200,
+    "early_stopping_patience": 20,
+    "device": "cpu",
+    "save_dir": "outputs/models",
+    "eval_dir": "outputs/evaluation"
+  },
+  "training": {
+    "best_epoch": 20,
+    "best_val_loss": 1.7117879390716553,
+    "best_val_f1": 0.4210526645183563,
+    "total_epochs": 40
+  },
+  "test_results": {
+    "accuracy": 0.82,
+    "precision": 0.23076923076923078,
+    "recall": 0.2727272727272727,
+    "f1": 0.24999999999999994,
+    "roc_auc": 0.7875383043922369,
+    "pr_auc": 0.3102961127385257
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "run_id": "run_20251019_164201",
+  "config": {
+    "data_path": "data/processed/homo_graph.pt",
+    "raw_csv": "data/raw/originaldata.csv",
+    "job_column": null,
+    "encoding": "gbk",
+    "skiprows": 1,
+    "hidden_dim": 64,
+    "num_layers": 2,
+    "dropout": 0.5,
+    "edge_dropout": 0.0,
+    "feature_dropout": 0.0,
+    "job_embed_dim": 32,
+    "mlp_hidden_dim": 128,
+    "lr": 0.01,
+    "weight_decay": 0.0005,
+    "epochs": 200,
+    "patience": 20,
+    "device": "cpu",
+    "seed": 42,
+    "save_dir": "outputs/models",
+    "eval_dir": "outputs/evaluation",
+    "use_focal_loss": false,
+    "focal_alpha": 0.25,
+    "focal_gamma": 2.0
+  },
+  "best_epoch": 29,
+  "val_metrics": {
+    "aupr": 0.393981018981019,
+    "auroc": 0.8652291105121295,
+    "accuracy": 0.7833333333333333,
+    "precision": 0.3333333333333333,
+    "recall": 0.8571428571428571,
+    "f1": 0.48,
+    "tn": 41,
+    "fp": 12,
+    "fn": 1,
+    "tp": 6,
+    "loss": 0.9192066788673401
+  },
+  "test_metrics": {
+    "aupr": 0.30966702373442184,
+    "auroc": 0.8202247191011236,
+    "accuracy": 0.69,
+    "precision": 0.23684210526315788,
+    "recall": 0.8181818181818182,
+    "f1": 0.3673469387755102,
+    "tn": 60,
+    "fp": 29,
+    "fn": 2,
+    "tp": 9,
+    "loss": 0.9039494395256042
+  },
+  "pos_weight": 7.947368421052632,
+  "num_jobs": 2,
+  "job_mapping": {
+    "0": 0,
+    "1": 1
+  }
+}

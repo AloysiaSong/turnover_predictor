@@ -1,0 +1,15 @@
+{
+  "num_nodes": 500,
+  "num_features": 47,
+  "turnover_rate": 0.112,
+  "num_edges": 99425,
+  "avg_degree": 198.85000610351562,
+  "is_connected": true,
+  "num_components": 1,
+  "has_isolated_nodes": false,
+  "min_degree": 44,
+  "max_degree": 332,
+  "strategy": "hybrid",
+  "k": 10,
+  "similarity_threshold": 0.6
+}

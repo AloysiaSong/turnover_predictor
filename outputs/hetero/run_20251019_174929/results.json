@@ -1,0 +1,85 @@
+{
+  "run_id": "run_20251019_174929",
+  "config": {
+    "seed": 42,
+    "device": "auto",
+    "data": {
+      "graph_path": "data/processed/hetero_graph.pt",
+      "triples_path": "data/processed/preference_triples.pt",
+      "scaler_path": "data/processed/feature_scaler.pkl"
+    },
+    "model": {
+      "hidden_dim": 128,
+      "num_layers": 2,
+      "heads": 4,
+      "dropout": 0.2,
+      "use_layernorm": true
+    },
+    "training": {
+      "epochs": 200,
+      "patience": 20,
+      "batch_size": 4096,
+      "lr": 0.001,
+      "weight_decay": 0.0005,
+      "grad_clip": 1.0
+    },
+    "loss": {
+      "alpha": 1.0,
+      "beta": 0.5,
+      "gamma": 0.0,
+      "turnover": {
+        "loss_type": "focal",
+        "alpha": 0.25,
+        "gamma": 2.0
+      },
+      "preference": {
+        "loss_type": "margin",
+        "margin": 1.0
+      }
+    },
+    "scheduler": {
+      "type": "reduce_on_plateau",
+      "factor": 0.5,
+      "patience": 5
+    },
+    "logging": {
+      "eval_interval": 1,
+      "save_dir": "outputs/hetero"
+    }
+  },
+  "best_epoch": 33,
+  "val_loss": 0.35719171166419983,
+  "best_threshold": 0.33,
+  "val_metrics": {
+    "aupr": 0.43983733844414963,
+    "auroc": 0.8490566037735849,
+    "accuracy": 0.9166666666666666,
+    "precision": 0.75,
+    "recall": 0.42857142857142855,
+    "f1": 0.5454545454545454,
+    "tn": 52,
+    "fp": 1,
+    "fn": 4,
+    "tp": 3
+  },
+  "test_metrics": {
+    "aupr": 0.6757199641559382,
+    "auroc": 0.86414708886619,
+    "accuracy": 0.91,
+    "precision": 0.625,
+    "recall": 0.45454545454545453,
+    "f1": 0.5263157894736842,
+    "tn": 86,
+    "fp": 3,
+    "fn": 6,
+    "tp": 5
+  },
+  "val_pref_metrics": {
+    "accuracy": 0.46666666865348816,
+    "margin": -1.7095272541046143
+  },
+  "test_pref_metrics": {
+    "accuracy": 0.5057142972946167,
+    "margin": -1.163754940032959
+  }
+}
