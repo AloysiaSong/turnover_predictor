@@ -10,7 +10,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import torch
@@ -141,6 +141,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", type=Path, default=Path("configs/hetero/default.yaml"))
     parser.add_argument("--baseline-results", type=Path, nargs="*", default=[], help="Optional results.json from GCN v2/v4")
     parser.add_argument("--tsne", action="store_true", help="Generate TSNE plots for employee embeddings")
+    parser.add_argument(
+        "--explain-ids",
+        type=int,
+        nargs="*",
+        default=[],
+        help="生成指定员工的解释结果（输入员工ID列表）",
+    )
     return parser.parse_args()
 
 
@@ -150,10 +157,10 @@ def load_model(run_dir: Path):
 
 
 def main() -> None:
-    args = parse_args()
     repo_root = Path(__file__).resolve().parents[2]
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
+    args = parse_args()
     run_dir = args.run_dir
     if not run_dir.exists():
         raise FileNotFoundError(f"Run directory not found: {run_dir}")
@@ -168,13 +175,68 @@ def main() -> None:
     config = load_config(args.config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    data: HeteroData = torch.load(args.hetero_data).to(device)
-    triples = torch.load(args.triples).long().to(device)
+    # 加载并验证数据
+    data_cpu: HeteroData = torch.load(args.hetero_data)
+    
+    # 节点类型兼容性处理
+    node_type_mapping = {
+        "employee": ["employee", "user", "staff"],
+        "current_job": ["current_job", "job", "position"],
+        "post_type": ["post_type", "post_category", "job_category"],
+    }
+    
+    # 自动映射节点类型（带调试信息）
+    print(f"原始节点类型: {data_cpu.node_types}")
+    for canonical_type, aliases in node_type_mapping.items():
+        if canonical_type not in data_cpu.node_types:
+            print(f"尝试映射 {canonical_type} -> {aliases}")
+            mapped = False
+            for alias in aliases:
+                if alias in data_cpu.node_types:
+                    print(f"映射成功: {canonical_type} <- {alias}")
+                    data_cpu[canonical_type] = data_cpu[alias]
+                    mapped = True
+                    break
+            if not mapped:
+                print(f"警告: 无法映射 {canonical_type}，候选别名: {aliases}")
+    
+    # 验证必需节点类型及属性
+    required_types = ["employee", "current_job", "post_type"]
+    validation_errors = []
+    
+    def _has_edges(node_type: str) -> bool:
+        return any(src == node_type or dst == node_type for src, _, dst in data_cpu.edge_types)
+
+    for req_type in required_types:
+        if req_type not in data_cpu.node_types:
+            validation_errors.append(f"节点类型缺失: {req_type}")
+            continue
+
+        store = data_cpu[req_type]
+        if not hasattr(store, "x") or store.x is None:
+            validation_errors.append(f"节点类型 {req_type} 缺少特征(x)")
+        if not _has_edges(req_type):
+            validation_errors.append(f"节点类型 {req_type} 缺少边关系")
+    
+    if validation_errors:
+        error_msg = "数据验证失败:\n" + "\n".join(validation_errors)
+        error_msg += f"\n\n可用节点类型: {data_cpu.node_types}"
+        error_msg += "\n可用边类型: " + ", ".join([str(et) for et in data_cpu.edge_types])
+        error_msg += "\n\n建议:"
+        error_msg += "\n1. 检查数据预处理脚本是否正确生成了所有必需节点"
+        error_msg += "\n2. 确保映射后的节点包含特征和边关系"
+        error_msg += "\n3. 如果使用别名映射，请检查映射后的节点是否完整"
+        raise ValueError(error_msg)
+    
+    data: HeteroData = data_cpu.clone().to(device)
+    triples_cpu = torch.load(args.triples).long()
+    triples = triples_cpu.clone().to(device)
 
     state = load_model(run_dir)
 
     from src.models.hetero_gnn import HeteroGNN, HeteroGNNConfig
     from src.models.multitask_heads import TurnoverHead, PreferencePairwiseHead, TurnoverHeadConfig, PreferenceHeadConfig
+    from src.models import explanations as expl
 
     metadata = data.metadata()
     input_dims = {ntype: data[ntype].x.size(-1) for ntype in data.node_types}
@@ -251,6 +313,49 @@ def main() -> None:
             name = path.parent.name
             metrics = baseline_res.get("test_metrics", {})
             print(f"[{name}] Test F1: {metrics.get('f1', 0):.4f}, AUROC: {metrics.get('auroc', 0):.4f}, AUPR: {metrics.get('aupr', 0):.4f}")
+
+    if args.explain_ids:
+        explain_ids = [int(i) for i in args.explain_ids]
+        explain_dir = run_dir / "explanations"
+        explain_dir.mkdir(parents=True, exist_ok=True)
+
+        feature_contribs = expl.compute_feature_contributions(
+            model,
+            turnover_head,
+            data_cpu,
+            explain_ids,
+            feature_names_path=Path("data/processed/feature_names.txt"),
+            device=device,
+        )
+        neighbor_contribs = expl.extract_attention_weights(
+            model,
+            data_cpu,
+            explain_ids,
+            meta_path=Path("data/processed/hetero_graph_meta.json"),
+            device=device,
+        )
+        preference_explanations = expl.explain_preference(
+            model,
+            preference_head,
+            data_cpu,
+            triples_cpu,
+            explain_ids,
+            meta_path=Path("data/processed/hetero_graph_meta.json"),
+            device=device,
+        )
+
+        for emp_id in explain_ids:
+            output = {
+                "employee_id": emp_id,
+                "feature_contributions": feature_contribs.get(emp_id, {}),
+                "neighbor_contributions": neighbor_contribs.get(emp_id, {}),
+                "preference_explanations": preference_explanations.get(emp_id, []),
+                "notes": "TODO: 补充全局Permutation Importance / SHAP等统计解释。",
+            }
+            out_path = explain_dir / f"employee_{emp_id:04d}.json"
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(output, f, ensure_ascii=False, indent=2)
+            print(f"解释结果已保存: {out_path}")
 
 
 if __name__ == "__main__":

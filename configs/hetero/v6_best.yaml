@@ -1,0 +1,77 @@
+# Configuration for GNN v6 BEST - Final Optimized Version
+# =========================================================
+# Goal: Achieve both high Turnover F1 AND high Preference Accuracy
+#
+# Strategy:
+# - Use dot product mode (proven to work well for preference)
+# - Balanced task weights: alpha=0.5, beta=0.5
+# - Strong hard negative mining (0.85 ratio, cache 10)
+# - Moderate focal loss for precision-recall balance
+# - Extended training for both stages
+
+seed: 42
+device: auto
+
+data:
+  graph_path: data/processed/hetero_graph.pt
+  triples_path: data/processed/preference_triples.pt
+  scaler_path: data/processed/feature_scaler.pkl
+
+model:
+  hidden_dim: 128
+  num_layers: 2
+  heads: 4
+  dropout: 0.2
+  use_layernorm: true
+
+training:
+  weight_decay: 0.0005
+  grad_clip: 1.0
+
+  # Stage 1: Extended pre-training
+  stage1:
+    epochs: 200          # ⬆️ Extended
+    patience: 25
+    lr: 0.001
+
+  # Stage 2: Balanced multi-task with hard negatives
+  stage2:
+    epochs: 200
+    patience: 30         # ⬆️ More patience
+    lr: 0.0003           # ⬇️ Smaller LR for stability
+    freeze_layers: 0
+
+    # ⚖️ EQUAL task weights (both important)
+    alpha: 0.5           # Turnover weight
+    beta: 0.5            # Preference weight
+
+    # Hard negative sampling (P0 improvements)
+    hard_ratio: 0.85
+    cache_size: 10
+    update_freq: 5
+
+loss:
+  # Moderate focal loss for balanced performance
+  turnover:
+    loss_type: focal
+    alpha: 0.28          # Slightly favor positive class
+    gamma: 2.0           # Standard focus
+    pos_weight: null
+
+  # Preference ranking loss
+  preference:
+    loss_type: adaptive_margin
+    margin: 0.8          # ⬇️ Lower initial margin for stability
+    max_margin: 2.5      # ⬇️ Lower max margin
+    margin_growth: 0.08  # ⬇️ Slower growth
+    ranking_weight: 0.15 # ⬆️ More ranking regularization
+    hard_negative_weight: 1.5  # ⬇️ Less aggressive weighting
+
+  # Dot product mode (proven effective)
+  preference_head:
+    hidden_dim: 128
+    dropout: 0.3
+    mode: dot
+
+logging:
+  save_dir: outputs/hetero_v6_best

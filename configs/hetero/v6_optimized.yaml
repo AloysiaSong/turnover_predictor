@@ -1,0 +1,81 @@
+# Configuration for GNN v6 OPTIMIZED - P0 + P1 Improvements
+# =============================================================
+# P0 Improvements:
+# - Increased Stage 2 training length (100 → 200 epochs)
+# - Increased patience (15 → 25)
+# - Higher hard negative ratio (0.7 → 0.85)
+# - Larger cache size (5 → 10)
+#
+# P1 Improvements:
+# - Dot product mode for preference head (simpler interaction)
+# - Adjusted focal loss parameters (better precision-recall balance)
+# - Alpha: 0.25 → 0.35 (higher positive class weight)
+# - Gamma: 2.0 → 2.5 (stronger focus on hard examples)
+
+seed: 42
+device: auto
+
+data:
+  graph_path: data/processed/hetero_graph.pt
+  triples_path: data/processed/preference_triples.pt
+  scaler_path: data/processed/feature_scaler.pkl
+
+model:
+  hidden_dim: 128
+  num_layers: 2
+  heads: 4
+  dropout: 0.2
+  use_layernorm: true
+
+training:
+  weight_decay: 0.0005
+  grad_clip: 1.0
+
+  # Stage 1: Pre-train on Turnover task
+  stage1:
+    epochs: 150
+    patience: 20
+    lr: 0.001
+
+  # Stage 2: Fine-tune on Preference task with hard negatives
+  # 🔴 P0 OPTIMIZATIONS APPLIED
+  stage2:
+    epochs: 200          # ⬆️ Increased from 100
+    patience: 25         # ⬆️ Increased from 15
+    lr: 0.0005
+    freeze_layers: 0
+
+    # Task weights (emphasize preference in stage 2)
+    alpha: 0.2  # Turnover weight
+    beta: 0.8   # Preference weight
+
+    # 🔴 P0: Hard negative sampling improvements
+    hard_ratio: 0.85     # ⬆️ Increased from 0.7 (85% hard negatives)
+    cache_size: 10       # ⬆️ Increased from 5 (cache top-10)
+    update_freq: 5       # Update cache every 5 epochs
+
+loss:
+  # 🟡 P1: Turnover classification loss - Adjusted focal parameters
+  turnover:
+    loss_type: focal
+    alpha: 0.35          # ⬆️ Increased from 0.25 (higher positive weight)
+    gamma: 2.5           # ⬆️ Increased from 2.0 (stronger hard sample focus)
+    pos_weight: null
+
+  # Preference ranking loss (adaptive margin)
+  preference:
+    loss_type: adaptive_margin
+    margin: 1.0
+    max_margin: 3.0
+    margin_growth: 0.1
+    ranking_weight: 0.1
+    hard_negative_weight: 2.0
+
+  # 🟡 P1: Preference head configuration - Dot product mode
+  preference_head:
+    hidden_dim: 128
+    dropout: 0.3
+    mode: dot            # ⬇️ Changed from 'concat' to 'dot' (simpler)
+
+logging:
+  save_dir: outputs/hetero_v6_optimized

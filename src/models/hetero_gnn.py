@@ -79,11 +79,19 @@ class HeteroGNN(nn.Module):
         self.dropout = nn.Dropout(self.config.dropout)
 
     def forward(self, data: HeteroData) -> Dict[str, Tensor]:
-        x_dict = {ntype: self.proj[ntype](data[ntype].x.float()) for ntype in data.node_types}
+        missing_ntypes = [ntype for ntype in self.metadata[0] if ntype not in data.node_types]
+        if missing_ntypes:
+            raise KeyError(f"Graph 缺少模型需要的节点类型: {missing_ntypes}")
+
+        x_dict = {
+            ntype: self.proj[ntype](data[ntype].x.float())
+            for ntype in self.metadata[0]
+        }
         edge_index_dict = data.edge_index_dict
 
         for layer, conv in enumerate(self.gnn_layers):
             h_dict = conv(x_dict, edge_index_dict)
+
             out_dict = {}
             for ntype, h in h_dict.items():
                 h = self.activation(h)
@@ -97,4 +105,3 @@ class HeteroGNN(nn.Module):
     def encode(self, data: HeteroData) -> Tuple[Tensor, Tensor, Tensor]:
         embeddings = self.forward(data)
         return embeddings["employee"], embeddings["current_job"], embeddings["post_type"]
-

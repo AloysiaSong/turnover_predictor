@@ -1,0 +1,66 @@
+# Dual-Head GNN Configuration - Best of Both Worlds
+# ==================================================
+# Solves the Dot vs Concat trade-off with separate projections
+
+seed: 42
+device: auto
+
+data:
+  graph_path: data/processed/hetero_graph.pt
+  triples_path: data/processed/preference_triples.pt
+  scaler_path: data/processed/feature_scaler.pkl
+
+model:
+  # Shared GNN encoder
+  gnn:
+    hidden_dim: 128
+    num_layers: 2
+    heads: 4
+    dropout: 0.2
+    use_layernorm: true
+
+  # Dual-Head projections (KEY INNOVATION)
+  dual_head:
+    turnover_proj_dim: 128        # Non-normalized for concat
+    preference_proj_dim: 128       # L2-normalized for dot product
+    use_projection_dropout: true
+    projection_dropout: 0.1
+    use_batch_norm: false
+    use_layer_norm: true
+    normalize_preference: true     # Enable L2 norm for preference
+
+training:
+  epochs: 200
+  patience: 25
+  lr: 0.0005
+  weight_decay: 0.0005
+  grad_clip: 1.0
+
+  # Hard negative mining (proven effective)
+  hard_ratio: 0.85
+  cache_size: 10
+  update_freq: 5
+
+loss:
+  # Balanced task weights
+  alpha: 0.45        # Turnover weight (slightly favor turnover)
+  beta: 0.55         # Preference weight
+
+  # Turnover loss
+  turnover:
+    loss_type: focal
+    alpha: 0.30
+    gamma: 2.2
+    pos_weight: null
+
+  # Preference loss (adaptive margin)
+  preference:
+    loss_type: adaptive_margin
+    margin: 0.9
+    max_margin: 2.8
+    margin_growth: 0.09
+    ranking_weight: 0.12
+    hard_negative_weight: 1.8
+
+logging:
+  save_dir: outputs/dual_head

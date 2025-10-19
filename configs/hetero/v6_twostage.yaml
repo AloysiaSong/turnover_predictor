@@ -1,0 +1,73 @@
+# Configuration for GNN v6 - Two-Stage Training with Hard Negatives
+# =====================================================================
+# This config implements:
+# 1. Hard negative mining for preference learning
+# 2. Two-stage training strategy
+# 3. Adaptive margin loss with curriculum learning
+
+seed: 42
+device: auto
+
+data:
+  graph_path: data/processed/hetero_graph.pt
+  triples_path: data/processed/preference_triples.pt
+  scaler_path: data/processed/feature_scaler.pkl
+
+model:
+  hidden_dim: 128
+  num_layers: 2
+  heads: 4
+  dropout: 0.2
+  use_layernorm: true
+
+training:
+  weight_decay: 0.0005
+  grad_clip: 1.0
+
+  # Stage 1: Pre-train on Turnover task
+  stage1:
+    epochs: 150
+    patience: 20
+    lr: 0.001
+
+  # Stage 2: Fine-tune on Preference task with hard negatives
+  stage2:
+    epochs: 100
+    patience: 15
+    lr: 0.0005  # Lower learning rate for fine-tuning
+    freeze_layers: 0  # Number of early GNN layers to freeze (0 = none)
+
+    # Task weights (emphasize preference in stage 2)
+    alpha: 0.2  # Turnover weight
+    beta: 0.8   # Preference weight
+
+    # Hard negative sampling
+    hard_ratio: 0.7     # 70% hard negatives, 30% random
+    cache_size: 5       # Cache top-5 hard negatives per user
+    update_freq: 5      # Update cache every 5 epochs
+
+loss:
+  # Turnover classification loss
+  turnover:
+    loss_type: focal
+    alpha: 0.25
+    gamma: 2.0
+    pos_weight: null
+
+  # Preference ranking loss (adaptive margin)
+  preference:
+    loss_type: adaptive_margin
+    margin: 1.0           # Initial margin
+    max_margin: 3.0       # Maximum margin (curriculum learning)
+    margin_growth: 0.1    # Margin increment
+    ranking_weight: 0.1   # Weight for ranking regularization
+    hard_negative_weight: 2.0  # Multiplier for hard negatives
+
+  # Preference head configuration
+  preference_head:
+    hidden_dim: 128
+    dropout: 0.3
+    mode: concat  # 'concat' or 'dot'
+
+logging:
+  save_dir: outputs/hetero_v6
